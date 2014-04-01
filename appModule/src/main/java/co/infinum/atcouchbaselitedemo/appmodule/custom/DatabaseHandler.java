@@ -26,7 +26,7 @@ public class DatabaseHandler {
 	private static Manager manager;
 	private static Database database;
 	private static String DBNAME = "atalks_demo_db";
-	public static final String SYNC_URL = "https://yousearectichmanewasomay:v8nj57DFTGCLh05AR14tqffn@abaotic.cloudant.com/%s";
+	public static final String SYNC_URL = "https://yousearectichmanewasomay:v8nj57DFTGCLh05AR14tqffn@abaotic.cloudant.com/atalks_demo_db";
 
 
 	public static Manager getManager(Context context) {

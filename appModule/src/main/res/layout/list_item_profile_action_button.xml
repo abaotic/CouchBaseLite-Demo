@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_height="wrap_content"
+              android:descendantFocusability="beforeDescendants"
+              android:layout_width="match_parent"
+              android:minHeight="?android:attr/listPreferredItemHeight"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+    >
+
+
+
+
+    <Button
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
+        android:padding="15dp"
+        android:background="#414241"
+        android:gravity="center"
+        android:textColor="@drawable/text_color_selector"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/viewAction"/>
+
+</LinearLayout>
+
