@@ -1,5 +1,12 @@
 package co.infinum.atcouchbaselitedemo.appmodule.activities;
 
+import com.couchbase.lite.Attachment;
+import com.couchbase.lite.CouchbaseLiteException;
+import com.couchbase.lite.Database;
+import com.couchbase.lite.Document;
+import com.couchbase.lite.DocumentChange;
+import com.couchbase.lite.replicator.Replication;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -19,13 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.couchbase.lite.Attachment;
-import com.couchbase.lite.CouchbaseLiteException;
-import com.couchbase.lite.Database;
-import com.couchbase.lite.Document;
-import com.couchbase.lite.DocumentChange;
-import com.couchbase.lite.replicator.Replication;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -42,278 +42,305 @@ import co.infinum.atcouchbaselitedemo.appmodule.custom.DatabaseHandler;
  */
 public class MainActivity extends Activity {
 
-	public static final String KEY_DATA = "data";
-	public static final String KEY_ACTION = "action";
-	public static final String UI_KEY_ACTION = "action";
-	public static final String UI_KEY_PARAMS = "params";
-	public static final String UI_KEY_TYPE = "type";
-	public static final String UI_KEY_LABEL = "label";
-	private ProgressBar downStreamProgress;
-	private ProgressBar upStreamProgress;
+    public static final String KEY_DATA = "data";
 
-	private LinearLayout llUpstream;
-	private LinearLayout llDownstream;
-	private LinearLayout llDataHolder;
-	private LayoutInflater inflater;
-	private Database database;
+    public static final String KEY_ACTION = "action";
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
+    public static final String UI_KEY_ACTION = "action";
 
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+    public static final String UI_KEY_PARAMS = "params";
 
-		initUI();
-		initDB();
-		startSync();
+    public static final String UI_KEY_TYPE = "type";
 
-	}
+    public static final String UI_KEY_LABEL = "label";
 
-	private void initUI() {
+    private ProgressBar downStreamProgress;
 
-		inflater = getLayoutInflater();
-		downStreamProgress = (ProgressBar) findViewById(R.id.progressBarDownstream);
-		upStreamProgress = (ProgressBar) findViewById(R.id.progressBarUpstream);
-		llDownstream = (LinearLayout) findViewById(R.id.llDownstream);
-		llUpstream = (LinearLayout) findViewById(R.id.llUpstream);
-		llDataHolder = (LinearLayout) findViewById(R.id.llDataHodler);
-	}
+    private ProgressBar upStreamProgress;
 
-	protected void initDB() {
+    private LinearLayout llUpstream;
 
-		database = DatabaseHandler.getDatabase(this);
-		database.addChangeListener(databaseListener);
-		Document document = database.getDocument("app_screen_profile");
-		displayData(document, false);
+    private LinearLayout llDownstream;
 
-	}
+    private LinearLayout llDataHolder;
 
-	protected void startSync() {
+    private LayoutInflater inflater;
 
-		URL syncUrl;
-		try {
-			syncUrl = new URL(DatabaseHandler.SYNC_URL);
-		} catch (MalformedURLException e) {
-			throw new RuntimeException(e);
-		}
+    private Database database;
 
-		Replication pullReplication = database.createPullReplication(syncUrl);
-		pullReplication.setContinuous(true);
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
 
-		Replication pushReplication = database.createPushReplication(syncUrl);
-		pushReplication.setContinuous(true);
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-		pullReplication.addChangeListener(pullReplicationListener);
-		pushReplication.addChangeListener(pushReplicationListener);
+        initUI();
+        initDB();
+        startSync();
 
-		pullReplication.start();
-		pushReplication.start();
+    }
 
-	}
+    private void initUI() {
 
-	private void displayData(Document doc, boolean clearFirst) {
+        inflater = getLayoutInflater();
+        downStreamProgress = (ProgressBar) findViewById(R.id.progressBarDownstream);
+        upStreamProgress = (ProgressBar) findViewById(R.id.progressBarUpstream);
+        llDownstream = (LinearLayout) findViewById(R.id.llDownstream);
+        llUpstream = (LinearLayout) findViewById(R.id.llUpstream);
+        llDataHolder = (LinearLayout) findViewById(R.id.llDataHodler);
+    }
 
-		if (clearFirst) {
-			llDataHolder.removeAllViews();
-		}
-		setAvatar(doc);
-		Map<String, String> dataObject = (Map<String, String>) doc.getProperties().get(KEY_DATA);
-		for (Map.Entry<String, String> dataEntry : dataObject.entrySet()) {
-			View dataItem = inflater.inflate(R.layout.list_item_profile_detail, null);
-			((TextView) dataItem.findViewById(R.id.tvParamLabel)).setText(String.valueOf(dataEntry.getKey()));
-			((TextView) dataItem.findViewById(R.id.tvParamContent)).setText(String.valueOf(dataEntry.getValue()));
-			llDataHolder.addView(dataItem, llDataHolder.getChildCount());
+    protected void initDB() {
 
-		}
-		final Map<String, String> actionObject = (Map<String, String>) doc.getProperties().get(KEY_ACTION);
-		View actionView = null;
-		if (String.valueOf(actionObject.get(UI_KEY_TYPE)).equals("button")) {
-			actionView = inflater.inflate(R.layout.list_item_profile_action_button, null);
-			Button action = (Button) actionView.findViewById(R.id.viewAction);
-			action.setText(String.valueOf(actionObject.get(UI_KEY_LABEL)));
-			action.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
+        database = DatabaseHandler.getDatabase(this);
+        database.addChangeListener(databaseListener);
+        Document document = database.getDocument("app_screen_profile");
+        displayData(document, false);
 
-					Intent i = new Intent(String.valueOf(actionObject.get(UI_KEY_ACTION)), Uri.parse(String.valueOf(actionObject.get(UI_KEY_PARAMS))));
-					startActivity(i);
-				}
-			});
-		} else {
-			//cover other types
-		}
-		llDataHolder.addView(actionView, llDataHolder.getChildCount());
+    }
 
-	}
+    protected void startSync() {
 
-	protected Database.ChangeListener databaseListener = new Database.ChangeListener() {
-		@Override
-		public void changed(final Database.ChangeEvent event) {
+        URL syncUrl;
+        try {
+            syncUrl = new URL(DatabaseHandler.SYNC_URL);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
 
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
+        Replication pullReplication = database.createPullReplication(syncUrl);
+        pullReplication.setContinuous(true);
 
-					onDatabaseChangeEvent(event);
-				}
-			});
-		}
-	};
+        Replication pushReplication = database.createPushReplication(syncUrl);
+        pushReplication.setContinuous(true);
 
-	protected Replication.ChangeListener pushReplicationListener = new Replication.ChangeListener() {
-		@Override
-		public void changed(final Replication.ChangeEvent event) {
+        pullReplication.addChangeListener(pullReplicationListener);
+        pushReplication.addChangeListener(pushReplicationListener);
 
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
+        pullReplication.start();
+        pushReplication.start();
 
-					onPushReplicationEvent(event);
-				}
-			});
+    }
+
+    private void displayData(Document doc, boolean clearFirst) {
+
+        if (clearFirst) {
+            llDataHolder.removeAllViews();
+        }
+        setAvatar(doc);
+        try {
+            Map<String, String> dataObject = (Map<String, String>) doc.getProperties().get(KEY_DATA);
+            for (Map.Entry<String, String> dataEntry : dataObject.entrySet()) {
+                View dataItem = inflater.inflate(R.layout.list_item_profile_detail, null);
+                ((TextView) dataItem.findViewById(R.id.tvParamLabel)).setText(String.valueOf(dataEntry.getKey()));
+                ((TextView) dataItem.findViewById(R.id.tvParamContent)).setText(String.valueOf(dataEntry.getValue()));
+                llDataHolder.addView(dataItem, llDataHolder.getChildCount());
+
+            }
+            final Map<String, String> actionObject = (Map<String, String>) doc.getProperties().get(KEY_ACTION);
+            View actionView = null;
+            if (String.valueOf(actionObject.get(UI_KEY_TYPE)).equals("button")) {
+                actionView = inflater.inflate(R.layout.list_item_profile_action_button, null);
+                Button action = (Button) actionView.findViewById(R.id.viewAction);
+                action.setText(String.valueOf(actionObject.get(UI_KEY_LABEL)));
+                action.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+
+                        Intent i = new Intent(String.valueOf(actionObject.get(UI_KEY_ACTION)),
+                                Uri.parse(String.valueOf(actionObject.get(UI_KEY_PARAMS))));
+                        startActivity(i);
+                    }
+                });
+            } else {
+                //cover other types
+            }
+            llDataHolder.addView(actionView, llDataHolder.getChildCount());
+        } catch (Exception e) {
+            System.out.println(e.toString());
+
+            return;
+        }
 
 
-		}
-	};
-	protected Replication.ChangeListener pullReplicationListener = new Replication.ChangeListener() {
-		@Override
-		public void changed(final Replication.ChangeEvent event) {
+    }
 
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
+    protected Database.ChangeListener databaseListener = new Database.ChangeListener() {
+        @Override
+        public void changed(final Database.ChangeEvent event) {
 
-					onPullReplicationEvent(event);
-				}
-			});
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    onDatabaseChangeEvent(event);
+                }
+            });
+        }
+    };
+
+    protected Replication.ChangeListener pushReplicationListener = new Replication.ChangeListener() {
+        @Override
+        public void changed(final Replication.ChangeEvent event) {
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    onPushReplicationEvent(event);
+                }
+            });
 
 
-		}
-	};
+        }
+    };
+
+    protected Replication.ChangeListener pullReplicationListener = new Replication.ChangeListener() {
+        @Override
+        public void changed(final Replication.ChangeEvent event) {
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    onPullReplicationEvent(event);
+                }
+            });
 
 
-	protected void onPullReplicationEvent(Replication.ChangeEvent event) {
+        }
+    };
 
-		llDownstream.setVisibility(View.VISIBLE);
-		Replication replication = event.getSource();
 
-		if (!replication.isRunning()) {
-			Log.d("CBLITE", String.format("Replicator %s not running", replication));
-		} else {
-			final int processed = replication.getCompletedChangesCount();
-			final int total = replication.getChangesCount();
+    protected void onPullReplicationEvent(Replication.ChangeEvent event) {
 
-			downStreamProgress.setProgress((int) ((double) processed * 100 / total));
-			if (processed == total)
+        llDownstream.setVisibility(View.VISIBLE);
+        Replication replication = event.getSource();
 
-				llDownstream.setVisibility(View.GONE);
-			Map<String, Object> headers = replication.getHeaders();
-			List<String> ids = replication.getDocIds();
-			String msg = String.format("Replicator processed %d / %d", processed, total);
-			Log.d("CBLITE", msg);
-		}
-	}
+        if (!replication.isRunning()) {
+            Log.d("CBLITE", String.format("Replicator %s not running", replication));
+        } else {
+            final int processed = replication.getCompletedChangesCount();
+            final int total = replication.getChangesCount();
 
-	protected void onPushReplicationEvent(Replication.ChangeEvent event) {
+            downStreamProgress.setProgress((int) ((double) processed * 100 / total));
+            if (processed == total)
 
-		llUpstream.setVisibility(View.VISIBLE);
-		Replication replication = event.getSource();
-		if (!replication.isRunning()) {
-			Log.d("CBLITE", String.format("Replicator %s not running", replication));
-		} else {
-			final int processed = replication.getCompletedChangesCount();
-			final int total = replication.getChangesCount();
-			Map<String, Object> headers = replication.getHeaders();
+            {
+                llDownstream.setVisibility(View.GONE);
+            }
+            Map<String, Object> headers = replication.getHeaders();
+            List<String> ids = replication.getDocIds();
+            String msg = String.format("Replicator processed %d / %d", processed, total);
+            Log.d("CBLITE", msg);
+        }
+    }
 
-			upStreamProgress.setProgress((int) ((double) processed * 100 / total));
-			if (processed == total)
+    protected void onPushReplicationEvent(Replication.ChangeEvent event) {
 
-				llUpstream.setVisibility(View.GONE);
-			String msg = String.format("Replicator processed %d / %d", processed, total);
-			Log.d("CBLITE", msg);
-		}
+        llUpstream.setVisibility(View.VISIBLE);
+        Replication replication = event.getSource();
+        if (!replication.isRunning()) {
+            Log.d("CBLITE", String.format("Replicator %s not running", replication));
+        } else {
+            final int processed = replication.getCompletedChangesCount();
+            final int total = replication.getChangesCount();
+            Map<String, Object> headers = replication.getHeaders();
 
-	}
+            upStreamProgress.setProgress((int) ((double) processed * 100 / total));
+            if (processed == total)
 
-	protected void onDatabaseChangeEvent(Database.ChangeEvent event) {
+            {
+                llUpstream.setVisibility(View.GONE);
+            }
+            String msg = String.format("Replicator processed %d / %d", processed, total);
+            Log.d("CBLITE", msg);
+        }
 
-		List<DocumentChange> documentChanges = event.getChanges();
-		if (documentChanges != null && documentChanges.size() > 0) {
+    }
+
+    protected void onDatabaseChangeEvent(Database.ChangeEvent event) {
+
+        List<DocumentChange> documentChanges = event.getChanges();
+        if (documentChanges != null && documentChanges.size() > 0) {
 //			Toast.makeText(MainActivity.this, documentChanges.size() + " documents changed!", Toast.LENGTH_SHORT).show();
-		}
-		displayData(database.getDocument("app_screen_profile"), true);
-	}
+        }
+        displayData(database.getDocument("app_screen_profile"), true);
+    }
 
-	protected void onDestroy() {
+    protected void onDestroy() {
 
-		try {
-			if (DatabaseHandler.getManager(this) != null) {
-				DatabaseHandler.getManager(this).close();
-			}
-		} catch (NetworkOnMainThreadException nomtException) {
+        try {
+            if (DatabaseHandler.getManager(this) != null) {
+                DatabaseHandler.getManager(this).close();
+            }
+        } catch (NetworkOnMainThreadException nomtException) {
 
-		}
-		super.onDestroy();
-	}
+        }
+        super.onDestroy();
+    }
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
 
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.main, menu);
-		return true;
-	}
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
-		int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
-		}
-		return super.onOptionsItemSelected(item);
-	}
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
-	private void setAvatar(Document doc) {
+    private void setAvatar(Document doc) {
 
-		for (Attachment at : doc.getCurrentRevision().getAttachments()) {
-			if (at.getContentType().toLowerCase().contains("image/")) {
-				View images = inflater.inflate(R.layout.list_item_profile_avatar, null);
-				ImageView iv = (ImageView) images.findViewById(R.id.ivAvatar);
+        if (doc == null || doc.getCurrentRevision() == null || doc.getCurrentRevision().getAttachments() == null) {
+            return;
+        }
+        for (Attachment at : doc.getCurrentRevision().getAttachments()) {
+            if (at.getContentType().toLowerCase().contains("image/")) {
+                View images = inflater.inflate(R.layout.list_item_profile_avatar, null);
+                ImageView iv = (ImageView) images.findViewById(R.id.ivAvatar);
 
-				try {
-					ByteArrayOutputStream os = new ByteArrayOutputStream();
-					byte[] buffer = new byte[0xFFFF];
+                try {
+                    ByteArrayOutputStream os = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[0xFFFF];
 
-					for (int len; (len = at.getContent().read(buffer)) != -1; )
-						os.write(buffer, 0, len);
+                    for (int len; (len = at.getContent().read(buffer)) != -1; ) {
+                        os.write(buffer, 0, len);
+                    }
 
-					os.flush();
+                    os.flush();
 
+                    byte[] bytes = os.toByteArray();
+                    iv.setImageBitmap(decodeBase64(bytes));
+                    llDataHolder.addView(images, llDataHolder.getChildCount());
+                    os.close();
 
-					byte[] bytes = os.toByteArray();
-					iv.setImageBitmap(decodeBase64(bytes));
-					llDataHolder.addView(images, llDataHolder.getChildCount());
-					os.close();
+                } catch (CouchbaseLiteException ex) {
+                } catch (IOException ex2) {
+                }
+            }
 
-				} catch (CouchbaseLiteException ex) {
-				} catch (IOException ex2) {
-				}
-			}
+        }
+    }
 
-		}
-	}
+    public static Bitmap decodeBase64(String input) {
 
-	public static Bitmap decodeBase64(String input) {
+        byte[] decodedByte = Base64.decode(input, 0);
+        return decodeBase64(decodedByte);
+    }
 
-		byte[] decodedByte = Base64.decode(input, 0);
-		return decodeBase64(decodedByte);
-	}
+    public static Bitmap decodeBase64(byte[] decodedByte) {
 
-	public static Bitmap decodeBase64(byte[] decodedByte) {
-
-		return BitmapFactory.decodeByteArray(decodedByte, 0, decodedByte.length);
-	}
+        return BitmapFactory.decodeByteArray(decodedByte, 0, decodedByte.length);
+    }
 }
